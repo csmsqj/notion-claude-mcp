@@ -1,0 +1,22 @@
+.venv/
+bin/
+cache/
+runtime/
+**/__pycache__/
+*.py[cod]
+*.log
+*.pid
+*.tmp
+*.bak-*
+
+# Local secrets, OAuth state, machine policy, and generated tunnel settings.
+gateway/config/
+gateway/logs/
+gateway/trash/
+workspace/oauth-test-data/
+workspace/notion-mcp-test.txt
+
+# One-off local recovery helpers are not part of the distributable gateway.
+runtime-patches/hot-restart-*.ps1
+RESTART-AND-OPEN-V22.ps1
+START-LEGACY.cmd

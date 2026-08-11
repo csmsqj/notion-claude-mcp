@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light" />
+<title>本地文件 MCP 网关</title>
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">M</span>
+      <div>
+        <div class="eyebrow">LOCAL WORKSPACE</div>
+        <h1>本地文件 MCP 网关</h1>
+        <p id="serverLine">正在连接本机服务…</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="pill" id="pendingPill" hidden>待确认 <b id="pendingCount">0</b></span>
+      <button id="lockBtn" class="btn btn-ghost" type="button">全局开关</button>
+      <button id="refreshBtn" class="btn btn-ghost" type="button">刷新</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="网关功能">
+  <div class="tabs-inner">
+    <button class="tab active" data-tab="paths" role="tab">文件夹授权</button>
+    <button class="tab" data-tab="browse" role="tab">本地文件</button>
+    <button class="tab" data-tab="approvals" role="tab">安全确认</button>
+    <button class="tab" data-tab="settings" role="tab">连接与设置</button>
+    <button class="tab" data-tab="audit" role="tab">操作记录</button>
+    <button class="tab" data-tab="trash" role="tab">回收站</button>
+  </div>
+</nav>
+
+<main>
+  <section class="panel active" id="panel-paths">
+    <div class="page-heading">
+      <div><span class="section-kicker">ACCESS</span><h2>管理本机访问范围</h2></div>
+      <p>只有你明确授权的文件或文件夹才能被访问，子目录自动继承权限。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div><h3>选择文件或文件夹</h3><p>使用 Windows 原生选择窗口，或直接粘贴绝对路径。</p></div></div>
+      <div class="action-row">
+        <button id="pickFolderBtn" class="btn btn-primary" type="button">选择文件夹</button>
+        <button id="pickFileBtn" class="btn" type="button">选择单个文件</button>
+        <button id="pickFromBrowse" class="btn btn-ghost" type="button">在页面中浏览</button>
+      </div>
+      <div class="field-stack">
+        <label for="newRootPath">绝对路径</label>
+        <input id="newRootPath" class="input mono" type="text" placeholder="例如 D:\workspace\project" />
+      </div>
+      <div class="row align-end">
+        <div class="field grow"><label for="newRootLevel">权限级别</label><select id="newRootLevel" class="input"></select></div>
+        <div class="field grow"><label for="newRootNote">备注</label><input id="newRootNote" class="input" type="text" placeholder="可选" /></div>
+        <button id="addRootBtn" class="btn btn-primary" type="button">添加授权</button>
+      </div>
+      <p class="hint" id="addRootHint">推荐从最低权限开始，需要时再提升。</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div><h3>已授权路径 <span class="muted" id="rootCount"></span></h3><p>可随时调整权限、停用或移除。</p></div></div>
+      <div id="rootList" class="root-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div><h3>四级权限</h3><p>权限从只读逐级增加；高风险操作始终需要本机确认。</p></div></div>
+      <div class="levels" id="levelLegend"></div>
+    </div>
+
+    <details class="card disclosure">
+      <summary>高级：黑名单规则</summary>
+      <p class="hint">黑名单优先级最高，一行一条。支持目录前缀或通配符，例如 <code>D:\private\credentials</code> 或 <code>*.kdbx</code>。</p>
+      <textarea id="denyBox" class="input mono" rows="4" placeholder="每行一条"></textarea>
+      <button id="saveDenyBtn" class="btn btn-primary" type="button">保存黑名单</button>
+    </details>
+  </section>
+
+  <section class="panel" id="panel-browse">
+    <div class="page-heading">
+      <div><span class="section-kicker">FILES</span><h2>浏览与搜索本地文件</h2></div>
+      <p>按名称快速查找文件，也可以逐层浏览磁盘目录。</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>搜索文件</h3><p>可搜索全部授权路径，也可以指定起点。</p></div></div>
+      <div class="row">
+        <input id="searchInput" class="input mono grow" type="text" placeholder="文件名或通配符，例如 *.md" />
+        <input id="searchScope" class="input mono grow" type="text" placeholder="搜索起点（留空 = 全部授权路径）" />
+        <button id="searchBtn" class="btn btn-primary" type="button">搜索</button>
+      </div>
+      <label class="check"><input type="checkbox" id="searchHidden" /> 包含隐藏文件</label>
+      <div id="searchResult" class="result-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div><h3>目录浏览器</h3><p>点击文件夹进入；可将当前目录直接加入授权列表。</p></div></div>
+      <div class="row">
+        <input id="browsePath" class="input mono grow" type="text" placeholder="输入绝对路径，例如 D:\" />
+        <button id="browseGoBtn" class="btn" type="button">进入</button>
+        <button id="browseUpBtn" class="btn btn-ghost" type="button">上一级</button>
+      </div>
+      <div id="driveBar" class="drive-bar"></div>
+      <div class="crumb" id="crumb"></div>
+      <div class="grant-bar" id="grantBar" hidden>
+        <span class="mono" id="grantPath"></span>
+        <select id="grantLevel" class="input"></select>
+        <button id="grantBtn" class="btn btn-primary" type="button">授权当前目录</button>
+      </div>
+      <label class="check"><input type="checkbox" id="browseHidden" /> 显示隐藏项</label>
+      <div id="browseList" class="entry-list"></div>
+      <div id="previewBox" class="preview-box" hidden>
+        <div class="preview-head">
+          <div><h3>文本预览</h3><p id="previewPath" class="mono"></p></div>
+          <button id="previewClose" class="btn btn-sm" type="button">关闭</button>
+        </div>
+        <div id="previewMeta" class="hint"></div>
+        <pre id="previewContent" class="preview-content"></pre>
+        <button id="previewMore" class="btn btn-ghost" type="button" hidden>继续读取</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-approvals">
+    <div class="page-heading">
+      <div><span class="section-kicker">SAFETY</span><h2>高风险操作确认</h2></div>
+      <p>目录删除、永久删除和其他重大操作只有在你确认后才执行。</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>客户端 OAuth 连接授权</h3><p>若系统确认窗被遮挡或无法打开，可在这里批准任意兼容的 MCP 客户端。客户端名称属于自报信息，请以回调地址为准。</p></div></div>
+      <div id="oauthRequestList" class="approval-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>确认记录 <span class="muted" id="approvalModeTag"></span></h3><p>默认会在这台 Windows 电脑上弹出确认窗口；这里保留同一批请求的状态。</p></div></div>
+      <div id="approvalList" class="approval-list"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-settings">
+    <div class="page-heading">
+      <div><span class="section-kicker">CONNECT</span><h2>连接 AI 客户端</h2></div>
+      <p>公网 MCP 使用 OAuth 2.1；无需复制或长期保存静态 Token。</p>
+    </div>
+    <div class="card connection-card" id="connCard">
+      <div class="card-head split">
+        <div><h3>OAuth 连接信息</h3><p>在任意兼容的 MCP 客户端中添加远程 MCP 地址。</p></div>
+        <div class="status-pair"><span class="status-badge" id="oauthMode">检查中</span><span class="status-badge neutral" id="tunnelMode">检查中</span></div>
+      </div>
+      <div class="conn-block">
+        <div class="conn-label"><span class="step">1</span><span>复制 MCP 地址</span></div>
+        <div class="conn-row">
+          <code class="conn-value mono" id="connUrl">读取中…</code>
+          <button class="btn btn-primary" type="button" data-copy="url">复制地址</button>
+        </div>
+        <p class="conn-desc" id="connUrlDesc"></p>
+      </div>
+      <div class="conn-block oauth-explain">
+        <div class="conn-label"><span class="step">2</span><span>在客户端选择 OAuth</span></div>
+        <div class="oauth-flow"><span>客户端发起连接</span><i>→</i><span>PKCE 安全校验</span><i>→</i><span>本机点击允许</span></div>
+        <p class="conn-desc">授权时，这台电脑会弹出一次性确认窗口。访问令牌有效期短，并可通过轮换刷新令牌续期；无需手动粘贴 Bearer Token。</p>
+      </div>
+      <details class="conn-more">
+        <summary>查看技术信息</summary>
+        <div class="conn-info" id="connInfo"></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div><h3>安全与阈值</h3><p>调整删除、确认、读取和命令执行限制。</p></div></div>
+      <div class="settings-grid" id="settingsGrid"></div>
+      <button id="saveSettingsBtn" class="btn btn-primary" type="button">保存设置</button>
+      <p class="hint" id="settingsHint"></p>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>可用工具 <span class="muted" id="toolCount"></span></h3><p>这些能力会提供给已授权的 MCP 客户端。</p></div></div>
+      <div id="toolList" class="tool-list"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-audit">
+    <div class="page-heading">
+      <div><span class="section-kicker">HISTORY</span><h2>操作记录</h2></div>
+      <p>读取、写入、删除、命令和被拒绝的尝试都会留痕。</p>
+    </div>
+    <div class="card"><div id="auditList" class="audit-list"></div></div>
+  </section>
+
+  <section class="panel" id="panel-trash">
+    <div class="page-heading">
+      <div><span class="section-kicker">RECOVERY</span><h2>网关回收站</h2></div>
+      <p>默认删除会先移入这里，降低误操作风险。</p>
+    </div>
+    <div class="card">
+      <div class="card-head split"><div><h3>已删除项目</h3><p>按保留天数清理，或手动清空全部内容。</p></div><div class="action-row compact"><button id="purgeTrashBtn" class="btn btn-danger" type="button">按保留期清理</button><button id="purgeAllBtn" class="btn btn-danger" type="button">清空全部</button></div></div>
+      <div id="trashList" class="entry-list"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
