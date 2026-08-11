@@ -46,10 +46,15 @@ from policy import (  # noqa: E402
 
 WEB_DIR = GATEWAY_ROOT / "web"
 PROTOCOL_VERSION = "2025-06-18"
-SUPPORTED_PROTOCOL_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26")
+SUPPORTED_PROTOCOL_VERSIONS = (
+    "2025-11-25",
+    "2025-06-18",
+    "2025-03-26",
+    "2024-11-05",  # v0 and older MCP clients
+)
 SERVER_NAME = "local-file-mcp-gateway"
 SERVER_TITLE = "本地文件 MCP 网关"
-SERVER_VERSION = "2.5.0"
+SERVER_VERSION = "2.5.1"
 MAX_BODY_BYTES = 4 * 1024 * 1024
 
 MODEL_INSTRUCTIONS = r"""你正在通过本地网关访问用户这台 Windows 电脑上的文件。
@@ -257,8 +262,14 @@ class MCPHandler(BaseHandler):
             return False
         try:
             parsed = urllib.parse.urlsplit(origin)
+            normalized = origin.rstrip("/")
+            trusted_origins = {
+                self._external_origin(),
+                "https://app.lobehub.com",
+                "https://platform.kimi.ai",
+            }
             return (
-                origin.rstrip("/") == self._external_origin()
+                normalized in trusted_origins
                 and not parsed.path
                 and not parsed.query
                 and not parsed.fragment
@@ -297,10 +308,15 @@ class MCPHandler(BaseHandler):
             'Bearer realm="local-file-mcp-gateway", error="invalid_token", '
             f'resource_metadata="{metadata_url}", scope="mcp"'
         )
+        # Some clients POST initialize before OAuth discovery. Because an
+        # unauthenticated body is deliberately not parsed, close HTTP/1.1 here;
+        # otherwise its JSON bytes can become the prefix of the client's next
+        # GET request (observed with v0/AI SDK as a malformed "{...}GET").
+        self.close_connection = True
         self.send_payload(
             error_response(None, -32000, "OAuth authorization required"),
             status=401,
-            extra={"WWW-Authenticate": challenge},
+            extra={"WWW-Authenticate": challenge, "Connection": "close"},
             head_only=head_only,
         )
 

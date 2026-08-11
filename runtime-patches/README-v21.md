@@ -1,4 +1,4 @@
-# Notion local gateway v2.5.0
+# Notion local gateway v2.5.1
 
 `START.cmd` launches `start-notion-mcp-v21.ps1`, which starts `runtime-patches\gateway-v21.py`. All launchers now use OAuth 2.1 Authorization Code + PKCE; the legacy static-token mode has been removed.
 

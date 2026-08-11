@@ -11,6 +11,7 @@
 - deny 路径、全局锁、符号链接和递归成员重新校验。
 - 高风险操作只能在 Windows 本机确认窗或 `127.0.0.1` 控制台批准。
 - OAuth 2.1 动态客户端注册、PKCE、短期 Access Token 和旋转 Refresh Token。
+- 兼容 MCP `2024-11-05`、OAuth 自动发现、浏览器预检及 DCR 客户端认证差异。
 - Cloudflare Quick Tunnel 临时地址，或 Named Tunnel 固定域名。
 - 登录计划任务、健康检查、故障恢复和本机审计日志。
 
@@ -66,7 +67,6 @@ SETUP-STABLE-TUNNEL.cmd
 ## 安全边界
 
 - 控制台只监听 `127.0.0.1:8876`，不会通过 Tunnel 暴露。
-- `gateway/config` 包含 OAuth 签名密钥、客户端状态和本机路径策略，已被 Git 忽略，严禁提交。
 - Level 2 本地命令在当前 Windows 用户权限下运行，并不是操作系统沙箱。只给可信项目授权，删除应优先使用 `delete_path`。
 - 目录、永久删除、受保护路径及明显破坏性命令需要 Level 4 和逐次本机批准。
 - 不建议将 `8875` 端口直接映射到公网。
@@ -77,5 +77,7 @@ SETUP-STABLE-TUNNEL.cmd
 D:\notion\workspace\validate-powershell.ps1
 D:\notion\.venv\Scripts\python.exe D:\notion\workspace\validate-assets.py
 D:\notion\.venv\Scripts\python.exe -m py_compile D:\notion\gateway\*.py
+D:\notion\.venv\Scripts\python.exe D:\notion\workspace\test-v0-oauth-compat.py
+D:\notion\.venv\Scripts\python.exe D:\notion\workspace\test-lobehub-oauth-compat.py
 node --check D:\notion\gateway\web\app.js
 ```
