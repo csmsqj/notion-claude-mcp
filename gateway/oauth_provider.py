@@ -549,14 +549,18 @@ class OAuthProvider:
         if client is None:
             raise OAuthError("invalid_client", "unknown client_id", 401)
         method = str(client.get("token_endpoint_auth_method") or "none")
-        if method != presented_method:
-            raise OAuthError("invalid_client", "wrong token endpoint authentication method", 401)
         expected_digest = str(client.get("secret_digest") or "")
         if method == "none":
-            if client_secret:
+            if presented_method != "none" or client_secret:
                 raise OAuthError("invalid_client", "public client must not send a client_secret", 401)
-        elif not client_secret or not hmac.compare_digest(expected_digest, _digest(client_secret)):
-            raise OAuthError("invalid_client", "invalid client_secret", 401)
+        else:
+            # Some MCP clients register for client_secret_post but later use
+            # HTTP Basic (or vice versa). Both transports prove possession of
+            # the same DCR-issued secret, so accept either confidential method.
+            if presented_method not in {"client_secret_basic", "client_secret_post"}:
+                raise OAuthError("invalid_client", "client_secret is required", 401)
+            if not client_secret or not hmac.compare_digest(expected_digest, _digest(client_secret)):
+                raise OAuthError("invalid_client", "invalid client_secret", 401)
         return client_id, client
 
     def token(self, params: dict[str, Any], authorization: str, issuer: str, resource: str) -> dict[str, Any]:

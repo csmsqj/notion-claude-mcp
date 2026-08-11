@@ -17,12 +17,14 @@ function Read-TextFile {
 }
 
 function Get-TrackedProcess {
-    param([string]$PidFile, [string]$ExpectedCommand, [string]$ExpectedExecutable)
+    param([string]$PidFile, [string]$ExpectedCommand, [string]$ExpectedExecutable = "")
     $trackedPid = Read-TextFile -Path $PidFile
     if ($trackedPid -notmatch "^\d+$") { return $null }
     $process = Get-CimInstance Win32_Process -Filter "ProcessId = $trackedPid" -ErrorAction SilentlyContinue
     if ($null -eq $process -or "$($process.CommandLine)" -notlike "*$ExpectedCommand*") { return $null }
-    if (-not "$($process.ExecutablePath)" -or ([System.IO.Path]::GetFullPath("$($process.ExecutablePath)") -ine $ExpectedExecutable)) { return $null }
+    if ($ExpectedExecutable) {
+        if (-not "$($process.ExecutablePath)" -or ([System.IO.Path]::GetFullPath("$($process.ExecutablePath)") -ine $ExpectedExecutable)) { return $null }
+    }
     return $process
 }
 
