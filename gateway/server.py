@@ -54,7 +54,7 @@ SUPPORTED_PROTOCOL_VERSIONS = (
 )
 SERVER_NAME = "local-file-mcp-gateway"
 SERVER_TITLE = "本地文件 MCP 网关"
-SERVER_VERSION = "2.5.1"
+SERVER_VERSION = "2.5.2"
 MAX_BODY_BYTES = 4 * 1024 * 1024
 
 MODEL_INSTRUCTIONS = r"""你正在通过本地网关访问用户这台 Windows 电脑上的文件。
@@ -267,6 +267,7 @@ class MCPHandler(BaseHandler):
                 self._external_origin(),
                 "https://app.lobehub.com",
                 "https://platform.kimi.ai",
+                "https://manus.im",
             }
             return (
                 normalized in trusted_origins
@@ -366,6 +367,41 @@ class MCPHandler(BaseHandler):
         extra = {"WWW-Authenticate": 'Basic realm="local-file-mcp-gateway-oauth"'} if exc.error == "invalid_client" else None
         self.send_payload(exc.payload(), status=exc.status, extra=extra)
 
+    def _send_sse_bootstrap(self, *, head_only: bool = False) -> None:
+        accept = self.headers.get("Accept", "").lower()
+        if not head_only and "text/event-stream" not in accept and "*/*" not in accept:
+            self.send_payload(
+                {"error": "not_acceptable", "error_description": "Accept must allow text/event-stream"},
+                status=406,
+            )
+            return
+        session_id = (self.headers.get("Mcp-Session-Id") or "").strip()
+        if session_id and not self.server.has_session(session_id):  # type: ignore[attr-defined]
+            self.send_payload(
+                {"error": "invalid_session", "error_description": "Unknown or expired Mcp-Session-Id"},
+                status=404,
+            )
+            return
+        if session_id:
+            body = b": connected\n\n"
+        else:
+            body = f"event: endpoint\ndata: {self._resource_url()}\n\n".encode("utf-8")
+        self.close_connection = True
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("Connection", "close")
+        self.send_header("X-Accel-Buffering", "no")
+        origin = self.headers.get("Origin", "").strip()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        self.end_headers()
+        if not head_only:
+            self.wfile.write(body)
+            self.wfile.flush()
+
     def do_OPTIONS(self) -> None:
         if not self._origin_allowed():
             self._origin_denied()
@@ -379,7 +415,7 @@ class MCPHandler(BaseHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, DELETE, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers",
-            "Accept, Authorization, Content-Type, MCP-Protocol-Version, Mcp-Session-Id",
+            "Accept, Authorization, Content-Type, Last-Event-ID, MCP-Protocol-Version, Mcp-Session-Id",
         )
         self.send_header("Content-Length", "0")
         self.end_headers()
@@ -438,12 +474,17 @@ class MCPHandler(BaseHandler):
             if not self._authorized():
                 self._unauthorized(head_only=head_only)
                 return
-            self.send_payload(
-                error_response(None, -32000, "SSE GET stream is not supported"),
-                status=405,
-                extra={"Allow": "POST, DELETE"},
-                head_only=head_only,
-            )
+            if not self._protocol_header_allowed():
+                self.send_payload(
+                    {"error": "invalid_request", "error_description": "Unsupported MCP-Protocol-Version"},
+                    status=400,
+                    head_only=head_only,
+                )
+                return
+            # Manus opens an authenticated GET stream before sending initialize
+            # and treats a spec-valid 405 as a failed connector. A short SSE
+            # bootstrap keeps Streamable HTTP POST semantics unchanged.
+            self._send_sse_bootstrap(head_only=head_only)
             return
         if path == "/healthz":
             self.send_payload(

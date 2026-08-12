@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Notion local gateway policy v2.5.1 entry point.
+"""Notion local gateway policy v2.5.2 entry point.
 
 User-selected access model:
 - Level 1: read only.
@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-PATCH_VERSION = "2.5.1"
+PATCH_VERSION = "2.5.2"
 PATCH_DIR = Path(__file__).resolve().parent
 CORE_PATH = PATCH_DIR / "gateway-v21-core.py"
 MODULE_NAME = "notion_gateway_v21_core"
