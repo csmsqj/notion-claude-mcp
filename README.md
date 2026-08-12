@@ -79,5 +79,6 @@ D:\notion\.venv\Scripts\python.exe D:\notion\workspace\validate-assets.py
 D:\notion\.venv\Scripts\python.exe -m py_compile D:\notion\gateway\*.py
 D:\notion\.venv\Scripts\python.exe D:\notion\workspace\test-v0-oauth-compat.py
 D:\notion\.venv\Scripts\python.exe D:\notion\workspace\test-lobehub-oauth-compat.py
+D:\notion\.venv\Scripts\python.exe D:\notion\workspace\test-manus-oauth-compat.py
 node --check D:\notion\gateway\web\app.js
 ```

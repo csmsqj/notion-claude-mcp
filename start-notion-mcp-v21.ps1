@@ -260,7 +260,7 @@ try {
 
 $consoleUrl = "http://127.0.0.1:$consolePort/"
 Write-Host ""
-Write-Host "Local file MCP gateway v2.5.1 is running." -ForegroundColor Green
+Write-Host "Local file MCP gateway v2.5.2 is running." -ForegroundColor Green
 Write-Host ""
 Write-Host "MCP URL (use in Notion, Claude, ChatGPT, or another MCP client):" -ForegroundColor Cyan
 Write-Host $publicUrl
