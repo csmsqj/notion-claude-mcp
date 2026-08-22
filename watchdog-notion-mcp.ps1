@@ -8,7 +8,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root = "D:\notion"
+$root = $PSScriptRoot
 $configDir = Join-Path $root "gateway\config"
 $logDir = Join-Path $root "gateway\logs"
 $desiredStateFile = Join-Path $configDir "desired-state.txt"

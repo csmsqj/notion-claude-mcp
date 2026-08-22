@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Notion local gateway policy v2.5.2 entry point.
+"""Notion local gateway policy v2.6.0 entry point.
 
 User-selected access model:
 - Level 1: read only.
@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-PATCH_VERSION = "2.5.2"
+PATCH_VERSION = "2.6.0"
 PATCH_DIR = Path(__file__).resolve().parent
 CORE_PATH = PATCH_DIR / "gateway-v21-core.py"
 MODULE_NAME = "notion_gateway_v21_core"
@@ -533,6 +533,15 @@ def install_v22() -> None:
 
 
 install_v22()
+
+# Launching this file as a script puts PATCH_DIR on sys.path automatically, but
+# be explicit so the entry point can also be imported by tests or wrappers.
+if str(PATCH_DIR) not in sys.path:
+    sys.path.insert(0, str(PATCH_DIR))
+
+from command_timeout_overlay import install_command_timeout_fix  # noqa: E402
+
+install_command_timeout_fix(core, assess_command, _EXEC_CONTEXT, PATCH_VERSION)
 
 if __name__ == "__main__":
     server.main()

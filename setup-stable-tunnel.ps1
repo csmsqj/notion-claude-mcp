@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-$root = "D:\notion"
+$root = $PSScriptRoot
 $cloudflared = Join-Path $root "bin\cloudflared.exe"
 $configDir = Join-Path $root "gateway\config"
 $settingsFile = Join-Path $configDir "tunnel-settings.json"
