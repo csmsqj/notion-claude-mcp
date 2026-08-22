@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-$root = "D:\notion"
+$root = Split-Path -Parent $PSScriptRoot
 $configDir = Join-Path $root "gateway\config"
 $installer = Join-Path $root "install-notion-mcp-watchdog.ps1"
 $serverPidFile = Join-Path $configDir "server.pid"

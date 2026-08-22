@@ -54,7 +54,7 @@ SUPPORTED_PROTOCOL_VERSIONS = (
 )
 SERVER_NAME = "local-file-mcp-gateway"
 SERVER_TITLE = "本地文件 MCP 网关"
-SERVER_VERSION = "2.5.2"
+SERVER_VERSION = "2.6.0"
 MAX_BODY_BYTES = 4 * 1024 * 1024
 
 MODEL_INSTRUCTIONS = r"""你正在通过本地网关访问用户这台 Windows 电脑上的文件。
@@ -80,7 +80,7 @@ MODEL_INSTRUCTIONS = r"""你正在通过本地网关访问用户这台 Windows �
 用 list_pending_approvals 可以查询仍在等待本机确认的操作。
 
 三、其他约定
-1. 所有 path 参数必须是 Windows 绝对路径，例如 D:\notion\workspace\note.md。相对路径会被拒绝。
+1. 所有 path 参数必须是 Windows 绝对路径，例如 D:\projects\demo\note.md。相对路径会被拒绝。
 2. 不确定能不能操作时，先调用 list_allowed_paths 或 get_permission，不要盲试。
 3. 收到 PATH_NOT_ALLOWED 说明该路径没被授权：用 pick_path 让用户选择，再让他去本机控制台添加授权。
    不要试图换路径、用 .. 或软链接绕过，这些都会被拦下并记入审计。

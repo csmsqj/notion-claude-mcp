@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$root = "D:\notion"
+$root = $PSScriptRoot
 $configDir = Join-Path $root "gateway\config"
 $urlFile = Join-Path $configDir "current-url.txt"
 $policyFile = Join-Path $configDir "policy.json"

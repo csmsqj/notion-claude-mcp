@@ -6,7 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$root = "D:\notion"
+$root = $PSScriptRoot
 $watchdogScript = Join-Path $root "watchdog-notion-mcp.ps1"
 $configDir = Join-Path $root "gateway\config"
 $desiredStateFile = Join-Path $configDir "desired-state.txt"

@@ -2,7 +2,7 @@ param([switch]$Recovery)
 
 $ErrorActionPreference = "Stop"
 
-$root = "D:\notion"
+$root = $PSScriptRoot
 $configDir = Join-Path $root "gateway\config"
 $legacyConfigDir = Join-Path $root "config"
 $desiredStateFile = Join-Path $configDir "desired-state.txt"

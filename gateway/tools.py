@@ -863,7 +863,7 @@ TOOL_DEFS: list[dict[str, Any]] = [
         "description": "查询指定绝对路径上读 / 写 / 删除 / 执行分别是允许、需要人工批准还是被拒绝。",
         "inputSchema": {
             "type": "object",
-            "properties": {"path": {**_STR, "description": "绝对路径，例如 D:\\notion\\workspace"}},
+            "properties": {"path": {**_STR, "description": "绝对路径，例如 D:\\projects\\demo"}},
             "required": ["path"],
             "additionalProperties": False,
         },

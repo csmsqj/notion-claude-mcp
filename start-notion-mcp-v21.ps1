@@ -6,7 +6,9 @@ param(
 $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-$root = "D:\notion"
+# The install directory is derived from this script's own location, so the
+# repository can be cloned to any path without editing the launchers.
+$root = $PSScriptRoot
 $python = Join-Path $root ".venv\Scripts\python.exe"
 $gateway = Join-Path $root "runtime-patches\gateway-v21.py"
 $cloudflaredExe = Join-Path $root "bin\cloudflared.exe"
@@ -49,7 +51,7 @@ function Assert-PortFree {
         $process = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue
         if ($process) { "$($process.ProcessName) (PID $($_.OwningProcess))" } else { "PID $($_.OwningProcess)" }
     } | Select-Object -Unique)
-    throw "$Label port $Port is already in use by $($owners -join ', '). Stop that service before starting D:\notion."
+    throw "$Label port $Port is already in use by $($owners -join ', '). Stop that service before starting $root."
 }
 
 function Wait-ForGateway {
@@ -65,7 +67,7 @@ function Wait-ForGateway {
                 if ($health.auth -ne "oauth2.1") {
                     throw "Port $mcpPort is serving a non-OAuth gateway."
                 }
-                return
+                return "$($health.version)"
             }
         } catch {
             Start-Sleep -Milliseconds 400
@@ -176,6 +178,7 @@ $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
 $server = $null
 $tunnel = $null
+$runningVersion = ""
 
 try {
     $server = Start-Process `
@@ -187,7 +190,7 @@ try {
         -WindowStyle Hidden `
         -PassThru
     $server.Id | Set-Content -LiteralPath $serverPidFile -Encoding ascii
-    Wait-ForGateway -Process $server
+    $runningVersion = Wait-ForGateway -Process $server
     $tunnelSettings = Read-TunnelSettings
     $tunnelMode = "$($tunnelSettings.mode)".ToLowerInvariant()
     if ($tunnelMode -eq "named") {
@@ -259,8 +262,9 @@ try {
 }
 
 $consoleUrl = "http://127.0.0.1:$consolePort/"
+$banner = if ($runningVersion) { "Local file MCP gateway v$runningVersion is running." } else { "Local file MCP gateway is running." }
 Write-Host ""
-Write-Host "Local file MCP gateway v2.5.2 is running." -ForegroundColor Green
+Write-Host $banner -ForegroundColor Green
 Write-Host ""
 Write-Host "MCP URL (use in Notion, Claude, ChatGPT, or another MCP client):" -ForegroundColor Cyan
 Write-Host $publicUrl
