@@ -199,6 +199,14 @@ def tool_error(tool: str, exc: PolicyError) -> dict[str, Any]:
 class MCPHandler(BaseHandler):
     """Public MCP resource server plus its OAuth authorization server."""
 
+    def end_headers(self) -> None:
+        origin = self.headers.get("Origin", "").strip()
+        if origin and self._origin_allowed():
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Expose-Headers", "Mcp-Session-Id, WWW-Authenticate")
+            self.send_header("Vary", "Origin")
+        super().end_headers()
+
     def _request_authority(self) -> tuple[str, int | None] | None:
         forwarded_host = self.headers.get("X-Forwarded-Host", "").split(",", 1)[0].strip()
         raw = forwarded_host or self.headers.get("Host", "").strip()
@@ -265,6 +273,7 @@ class MCPHandler(BaseHandler):
             normalized = origin.rstrip("/")
             trusted_origins = {
                 self._external_origin(),
+                "https://app.notion.com",
                 "https://app.lobehub.com",
                 "https://platform.kimi.ai",
                 "https://manus.im",
@@ -393,10 +402,6 @@ class MCPHandler(BaseHandler):
         self.send_header("Cache-Control", "no-cache, no-transform")
         self.send_header("Connection", "close")
         self.send_header("X-Accel-Buffering", "no")
-        origin = self.headers.get("Origin", "").strip()
-        if origin:
-            self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Vary", "Origin")
         self.end_headers()
         if not head_only:
             self.wfile.write(body)
@@ -408,10 +413,6 @@ class MCPHandler(BaseHandler):
             return
         self.send_response(204)
         self.send_header("Allow", "GET, HEAD, POST, DELETE, OPTIONS")
-        origin = self.headers.get("Origin", "").strip()
-        if origin:
-            self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, DELETE, OPTIONS")
         self.send_header(
             "Access-Control-Allow-Headers",

@@ -24,7 +24,7 @@ Level-2 commands execute under the current Windows account and are **not an OS s
 - Longer commands continue as bounded background jobs and return a `job_id` with `status: running`.
 - Query with `get_command_status`; use `list_command_jobs` if the job ID was lost. Do not rerun an active command.
 - Identical recent commands are reused for 120 seconds unless `force_new: true` is explicit.
-- At most two command jobs run concurrently. Output streams to files under `gateway\logs\command-jobs` and is truncated on return; each job still obeys the 300-second limit.
+- At most two command jobs run concurrently. Output streams to files under `gateway\logs\command-jobs` and is truncated on return; ordinary jobs use the configured 300-second limit, while recognized npm / pip / uv dependency installs receive a bounded 900-second limit. This extends time available for slow downloads; it does not repair network or proxy connectivity.
 - A command that reads an entire large game container into memory is rejected as resource-intensive; read it in chunks instead.
 - Audit entries redact common tokens and record job ID, PID, status, duration, timeout, and exit code.
 

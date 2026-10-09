@@ -205,7 +205,7 @@ try {
         }
         $tunnel = Start-Process `
             -FilePath $cloudflaredExe `
-            -ArgumentList @("tunnel", "--no-autoupdate", "--config", $namedConfig, "run", $tunnelName) `
+            -ArgumentList @("tunnel", "--no-autoupdate", "--protocol", "http2", "--config", $namedConfig, "run", $tunnelName) `
             -RedirectStandardOutput $tunnelOut `
             -RedirectStandardError $tunnelErr `
             -WindowStyle Hidden `

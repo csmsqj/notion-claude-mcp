@@ -19,6 +19,17 @@ STATUS_WAIT_MAX_SECONDS = 10
 MODEL_MARKER = "命令任务与超时回传："
 
 
+def is_dependency_install(command: str) -> bool:
+    """Long-running package installs require a bounded 900 second job."""
+    patterns = (
+        r"npm(?:\.cmd)?\s+(?:install|i|ci)(?:\s|$)",
+        r"(?:pip|pip3)(?:\.exe)?\s+install(?:\s|$)",
+        r"(?:\S*[\\/])?python(?:\.exe|3(?:\.\d+)?)?\s+-m\s+pip\s+install(?:\s|$)",
+        r"uv(?:\.exe)?\s+(?:pip\s+install|sync)(?:\s|$)",
+    )
+    return any(re.match(r"(?i)^\s*" + pattern, command) for pattern in patterns)
+
+
 def install_command_timeout_fix(
     core: Any,
     assess_command: Callable[[str, Path], Any],
@@ -68,6 +79,9 @@ def install_command_timeout_fix(
                 argv,
             )
         return assessment
+
+    from development_tools import install_development_tools
+    install_development_tools(core, exec_context)
 
     core.assess_command = guarded_assess
 
@@ -131,7 +145,7 @@ def install_command_timeout_fix(
             job_id, reused = jobs.start_or_reuse(
                 command,
                 cwd,
-                int(policy.POLICY.setting("exec_timeout_seconds")),
+                900 if is_dependency_install(command) else int(policy.POLICY.setting("exec_timeout_seconds")),
                 force_new=bool(args.get("force_new", False)),
             )
             first = jobs.get(job_id, include_output=False)
