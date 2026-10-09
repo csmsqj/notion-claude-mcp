@@ -20,6 +20,7 @@ from approvals import APPROVALS, STATUS_APPROVED, approval_fingerprint
 from policy import (
     LEVEL_LABEL,
     LEVEL_NAME_BY_VALUE,
+    LEVEL_WRITE,
     OP_DELETE,
     OP_EXEC,
     OP_READ,
@@ -537,9 +538,44 @@ def t_write_file(args: dict[str, Any]) -> dict[str, Any]:
 
 def t_create_dir(args: dict[str, Any]) -> dict[str, Any]:
     raw = str(args.get("path", ""))
+    target = resolve_target(raw)
+
+    # mkdir -p on an existing directory is a read-only no-op, not an overwrite.
+    # Only skip the large-target approval when the caller has write-level
+    # authorization and no other policy rule (lock, deny, system path) blocks it.
+    # Do not treat a symlink as an existing real directory.
+    if target.exists and target.path.is_dir() and not target.path.is_symlink():
+        _, write_decision = POLICY.evaluate(raw, OP_WRITE)
+        no_op_allowed = (
+            write_decision.level >= LEVEL_WRITE
+            and write_decision.classification != "system"
+            and (
+                (write_decision.allowed and not write_decision.needs_approval)
+                or (
+                    write_decision.classification == "large"
+                    and (write_decision.allowed or write_decision.code == "LARGE_TARGET_PROTECTED")
+                )
+            )
+        )
+        if no_op_allowed:
+            path, info = _gate("create_dir", raw, OP_READ)
+            # Check again in case another process changed the path while we
+            # evaluated policy; never create it without the write gate.
+            if info["level"] >= LEVEL_WRITE and path.is_dir() and not path.is_symlink():
+                info.update(
+                    classification=write_decision.classification,
+                    risk="low",
+                    reason="目录已存在，无需写入。",
+                )
+                payload = {"path": str(path), "created": False}
+                fileops.audit("mkdir", {"tool": "create_dir", "path": str(path), "created": False})
+                return _ok("create_dir", payload, info)
+
     path, info = _gate("create_dir", raw, OP_WRITE)
+    already_exists = path.is_dir()
     payload = fileops.make_dir(path)
-    fileops.audit("mkdir", {"tool": "create_dir", "path": str(path)})
+    payload["created"] = not already_exists
+    fileops.audit("mkdir", {"tool": "create_dir", "path": str(path), "created": payload["created"]})
     return _ok("create_dir", payload, info)
 
 
