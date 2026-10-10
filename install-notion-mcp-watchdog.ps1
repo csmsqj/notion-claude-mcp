@@ -12,6 +12,8 @@ $configDir = Join-Path $root "gateway\config"
 $desiredStateFile = Join-Path $configDir "desired-state.txt"
 $watchdogPidFile = Join-Path $configDir "watchdog.pid"
 $taskName = "Local File MCP Gateway Watchdog"
+$supervisorTaskName = "Local File MCP Gateway Supervisor"
+$supervisorScript = Join-Path $root "supervise-notion-mcp-watchdog.ps1"
 $powershellExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
 
 function Stop-ExistingWatchdog {
@@ -29,6 +31,7 @@ function Stop-ExistingWatchdog {
 if ($Uninstall) {
     Stop-ExistingWatchdog
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $supervisorTaskName -Confirm:$false -ErrorAction SilentlyContinue
     Write-Host "Automatic recovery watchdog was removed." -ForegroundColor Green
     exit 0
 }
@@ -41,6 +44,7 @@ New-Item -ItemType Directory -Force -Path $configDir | Out-Null
 # Register-ScheduledTask -Force does not replace a currently running instance.
 # Stop it first so script updates are loaded immediately instead of keeping stale code.
 Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+Stop-ScheduledTask -TaskName $supervisorTaskName -ErrorAction SilentlyContinue
 Stop-ExistingWatchdog
 Start-Sleep -Milliseconds 500
 
@@ -63,6 +67,20 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+
+$supervisorAction = New-ScheduledTaskAction -Execute $powershellExe -Argument (
+    "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File " +
+    ('"{0}"' -f $supervisorScript)
+) -WorkingDirectory $root
+$supervisorTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
+    -RepetitionInterval (New-TimeSpan -Minutes 3) `
+    -RepetitionDuration (New-TimeSpan -Days 3650)
+$supervisorSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew `
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
+Register-ScheduledTask -TaskName $supervisorTaskName -Action $supervisorAction `
+    -Trigger $supervisorTrigger -Principal $principal -Settings $supervisorSettings -Force | Out-Null
+
 if (-not (Test-Path -LiteralPath $desiredStateFile)) {
     "running" | Set-Content -LiteralPath $desiredStateFile -Encoding ascii
 }

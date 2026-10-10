@@ -7,6 +7,7 @@ $files = @(
     (Join-Path $root "stop-notion-mcp.ps1"),
     (Join-Path $root "status-notion-mcp.ps1"),
     (Join-Path $root "watchdog-notion-mcp.ps1"),
+    (Join-Path $root "supervise-notion-mcp-watchdog.ps1"),
     (Join-Path $root "install-notion-mcp-watchdog.ps1"),
     (Join-Path $root "open-control-panel.ps1"),
     (Join-Path $root "runtime-patches\oauth-consent.ps1")

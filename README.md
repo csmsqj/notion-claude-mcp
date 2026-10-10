@@ -211,3 +211,12 @@ node --check .\gateway\web\app.js
 （5）本机产生的数据在哪里
 
 `gateway\config`（策略、OAuth 状态、隧道设置）、`gateway\logs`（审计日志、命令任务输出）、`gateway\trash`（回收站）都在本机，且已被 `.gitignore` 排除，不会进入 Git 提交。
+
+
+## 看门狗双重自恢复（3 分钟）
+
+运行 INSTALL-AUTO-RECOVERY.cmd 会注册登录启动的看门狗，以及每 3 分钟检查一次的 Supervisor 任务。如果看门狗退出，或健康状态超过 240 秒没有更新，Supervisor 会拉起新的看门狗；健康时不会干扰进程。STOP.cmd 的手动停止状态仍会受到尊重。
+
+看门狗原有的 30 秒轮询和 3 次连续失败阈值仍保留。Quick Tunnel 重启后 URL 可能改变，建议配置 Named Tunnel 实现固定连接地址。任何看门狗都不能保证网络运营商或 AI 平台的外部故障不发生。
+
+提交前必须运行 ` .\.venv\Scripts\python.exe workspace\check-repo-privacy.py --history `；出现 BLOCKED 时禁止推送，先排除误报并核实历史凭据是否需要撤销。审计只打印风险类型，不打印私密值。

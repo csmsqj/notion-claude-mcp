@@ -20,3 +20,18 @@ workspace/notion-mcp-test.txt
 runtime-patches/hot-restart-*.ps1
 RESTART-AND-OPEN-V22.ps1
 START-LEGACY.cmd
+
+# Private machine diagnostics and recovery
+azure_*
+90-azure-*
+hysteria2-test/
+setup_fingerprint_http_proxy.py
+workspace/recovery/
+workspace/fix_install_timeout.py
+*.pem
+*.p12
+*.pfx
+*.key
+.env
+.env.*
+**/.cloudflared/
