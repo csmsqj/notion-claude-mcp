@@ -29,9 +29,10 @@ function Stop-ExistingWatchdog {
 }
 
 if ($Uninstall) {
+    # Remove supervisor first to avoid a task race reviving the watchdog.
+    Unregister-ScheduledTask -TaskName $supervisorTaskName -Confirm:$false -ErrorAction SilentlyContinue
     Stop-ExistingWatchdog
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-    Unregister-ScheduledTask -TaskName $supervisorTaskName -Confirm:$false -ErrorAction SilentlyContinue
     Write-Host "Automatic recovery watchdog was removed." -ForegroundColor Green
     exit 0
 }

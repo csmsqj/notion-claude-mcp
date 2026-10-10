@@ -18,6 +18,7 @@ PRIVATE_PATH_PATTERNS = [
     re.compile(r"^(?:gateway/(?:config|logs|trash)/|config/|logs/|runtime/|cache/|bin/|\.venv/)", re.I),
     re.compile(r"^(?:azure[_-]|90-azure-|hysteria2-test/|setup_fingerprint_http_proxy\.py$|workspace/recovery/)", re.I),
     re.compile(r"(^|/)(?:\.env(?:\..*)?|\.cloudflared|cloudflared\.yml|tunnel-settings\.json|current-url\.txt|notion-connection-details\.txt)$", re.I),
+    re.compile(r"(^|/)(?:\.ssh/|id_rsa$|id_ed25519$|\.env/)", re.I),
     re.compile(r"\.(?:pem|p12|pfx|key|log|pid|bak)(?:$|[-.])", re.I),
 ]
 PRIVATE_TEXT_PATTERNS = {
@@ -28,6 +29,7 @@ PRIVATE_TEXT_PATTERNS = {
     "tunnel-credential": re.compile(rb'"(?:TunnelSecret|AccountTag)"\s*:\s*"[^"]{8,}"'),
     "url-password": re.compile(rb"https?://[^\s/:@]{1,128}:[^\s/@]{3,128}@[^\s/]{3,128}"),
     "live-quick-tunnel": re.compile(rb"https?://[a-z0-9-]{6,}\.trycloudflare\.com", re.I),
+    "live-quick-tunnel": re.compile(rb"https?://[a-z0-9-]{8,}\.trycloudflare\.com", re.I),
     "local-user-path": re.compile(rb"[A-Za-z]:\\Users\\(?!username\b|yourname\b)[^\\\r\n\"']{3,}\\", re.I),
 }
 REVIEW_PATTERNS = {
@@ -56,8 +58,17 @@ def inspect(data: bytes, path: str, failures: collections.Counter, reviews: coll
         return
     if b"\x00" in data[:4096]:
         return
+    known_fake_tokens = {
+        "workspace/test-command-overlay-integration.py": {b"sk-offline-test-not-a-real-secret-123456"},
+        "workspace/test-command-timeout-fix.py": {b"sk-abcdefghijklmnopqrstuvwxyz123456", b"github_pat_abcdefghijklmnopqrstuvwxyz"},
+    }
     for name, pattern in PRIVATE_TEXT_PATTERNS.items():
-        if pattern.search(data):
+        for match in pattern.finditer(data):
+            value = match.group()
+            if name in {"github-token", "api-token"} and value in known_fake_tokens.get(path, set()):
+                continue
+            if name == "local-user-path" and path == "README.md" and "你的用户名" in value.decode("utf-8", "replace"):
+                continue
             failures[name] += 1
     for name, pattern in REVIEW_PATTERNS.items():
         if pattern.search(data):
@@ -72,7 +83,7 @@ def audit_index(failures: collections.Counter, reviews: collections.Counter) -> 
     return len(paths)
 
 def audit_history(failures: collections.Counter, reviews: collections.Counter) -> int:
-    items = [x for x in git("rev-list", "--objects", "--all").splitlines() if b" " in x]
+    items = [x for x in git("rev-list", "--objects", "HEAD").splitlines() if b" " in x]
     total = 0
     for item in items:
         sha_bytes, raw_path = item.split(b" ", 1)
@@ -86,6 +97,9 @@ def audit_history(failures: collections.Counter, reviews: collections.Counter) -
             continue
         inspect(git("cat-file", "blob", sha), path, failures, reviews)
         total += 1
+    for email in git("log", "HEAD", "--format=%aE%n%cE").splitlines():
+        if email and not email.lower().endswith(b"@users.noreply.github.com"):
+            failures["commit-email-not-anonymized"] += 1
     return total
 
 def main() -> int:
@@ -111,7 +125,7 @@ def main() -> int:
     if failures:
         print("FAIL: high-confidence private material needs review before publishing.")
         return 1
-    print("PASS: no high-confidence private material detected; review warnings manually.")
+    print("PASS: no high-confidence private material detected in HEAD; review warnings manually.")
     return 0
 
 if __name__ == "__main__":

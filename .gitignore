@@ -35,3 +35,6 @@ workspace/fix_install_timeout.py
 .env
 .env.*
 **/.cloudflared/
+
+# Machine-specific TCP diagnostics.
+azure-tcp-*

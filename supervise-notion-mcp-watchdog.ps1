@@ -33,7 +33,12 @@ try {
         try {
             $state = Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json
             $checked = [DateTimeOffset]::Parse("$($state.last_check)")
-            $stale = ([DateTimeOffset]::Now - $checked).TotalSeconds -gt $StaleSeconds
+            # Recovery can legitimately take several minutes during upstream outages.
+            # Do not kill a working recovery after the normal stale threshold.
+            $effectiveStaleSeconds = if ("$($state.status)" -eq "recovering") {
+                [Math]::Max($StaleSeconds, 900)
+            } else { $StaleSeconds }
+            $stale = ([DateTimeOffset]::Now - $checked).TotalSeconds -gt $effectiveStaleSeconds
         } catch { $stale = $true }
     }
     if ($valid -and -not $stale) { return }
