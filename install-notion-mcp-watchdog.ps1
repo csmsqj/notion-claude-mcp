@@ -14,7 +14,8 @@ $watchdogPidFile = Join-Path $configDir "watchdog.pid"
 $taskName = "Local File MCP Gateway Watchdog"
 $supervisorTaskName = "Local File MCP Gateway Supervisor"
 $supervisorScript = Join-Path $root "supervise-notion-mcp-watchdog.ps1"
-$powershellExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+$pythonwExe = Join-Path $root ".venv\Scripts\pythonw.exe"
+$hiddenLauncher = Join-Path $root "workspace\hidden-task-launcher.py"
 
 function Stop-ExistingWatchdog {
     if (-not (Test-Path -LiteralPath $watchdogPidFile)) { return }
@@ -40,6 +41,9 @@ if ($Uninstall) {
 if (-not (Test-Path -LiteralPath $watchdogScript -PathType Leaf)) {
     throw "Missing watchdog script: $watchdogScript"
 }
+foreach ($required in @($pythonwExe, $hiddenLauncher, $supervisorScript)) {
+    if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing hidden-launch prerequisite: $required" }
+}
 New-Item -ItemType Directory -Force -Path $configDir | Out-Null
 
 # Register-ScheduledTask -Force does not replace a currently running instance.
@@ -49,13 +53,11 @@ Stop-ScheduledTask -TaskName $supervisorTaskName -ErrorAction SilentlyContinue
 Stop-ExistingWatchdog
 Start-Sleep -Milliseconds 500
 
-$arguments = (
-    "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass " +
-    "-File `"$watchdogScript`" -CheckIntervalSeconds $CheckIntervalSeconds " +
-    "-FailureThreshold $FailureThreshold -PublicFailureThreshold $PublicFailureThreshold"
-)
+# pythonw.exe is a GUI-subsystem executable: Task Scheduler opens no terminal.
+# The wrapper launches the trusted watchdog with CREATE_NO_WINDOW as a second guard.
+$arguments = ('"{0}" --mode watchdog --interval {1} --failure-threshold {2} --public-failure-threshold {3}' -f $hiddenLauncher, $CheckIntervalSeconds, $FailureThreshold, $PublicFailureThreshold)
 $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
-$action = New-ScheduledTaskAction -Execute $powershellExe -Argument $arguments -WorkingDirectory $root
+$action = New-ScheduledTaskAction -Execute $pythonwExe -Argument $arguments -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $identity
 $principal = New-ScheduledTaskPrincipal -UserId $identity -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet `
@@ -69,9 +71,8 @@ $settings = New-ScheduledTaskSettingsSet `
 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 
-$supervisorAction = New-ScheduledTaskAction -Execute $powershellExe -Argument (
-    "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File " +
-    ('"{0}"' -f $supervisorScript)
+$supervisorAction = New-ScheduledTaskAction -Execute $pythonwExe -Argument (
+    ('"{0}" --mode supervisor' -f $hiddenLauncher)
 ) -WorkingDirectory $root
 $supervisorTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 3) `

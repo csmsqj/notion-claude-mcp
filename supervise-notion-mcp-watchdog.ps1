@@ -12,6 +12,8 @@ $desired = Join-Path $config "desired-state.txt"
 $pidFile = Join-Path $config "watchdog.pid"
 $stateFile = Join-Path $config "watchdog-state.json"
 $ps = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+$pythonwExe = Join-Path $root ".venv\Scripts\pythonw.exe"
+$hiddenLauncher = Join-Path $root "workspace\hidden-task-launcher.py"
 $lock = New-Object System.Threading.Mutex($false, "Global\LocalFileMcpGatewaySupervisor")
 $acquired = $false
 try {
@@ -44,9 +46,14 @@ try {
     if ($valid -and -not $stale) { return }
     # Refuse to terminate an unrelated process even when the PID was reused.
     if ($valid) { Stop-Process -Id ([int]$pidText) -Force -ErrorAction Stop }
-    $args = '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "' +
-        $watchdog + '" -CheckIntervalSeconds 30 -FailureThreshold 3 -PublicFailureThreshold 3'
-    Start-Process -FilePath $ps -ArgumentList $args -WorkingDirectory $root -WindowStyle Hidden | Out-Null
+    # Never launch powershell.exe directly: -WindowStyle Hidden can still show a terminal.
+    # A pythonw.exe wrapper creates the child with CREATE_NO_WINDOW instead.
+    if (-not (Test-Path -LiteralPath $pythonwExe -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $hiddenLauncher -PathType Leaf)) {
+        throw "Hidden watchdog launcher is missing."
+    }
+    $arguments = ('"{0}" --mode watchdog --interval 30 --failure-threshold 3 --public-failure-threshold 3' -f $hiddenLauncher)
+    Start-Process -FilePath $pythonwExe -ArgumentList $arguments -WorkingDirectory $root | Out-Null
 } finally {
     if ($acquired) { $lock.ReleaseMutex() }
     $lock.Dispose()
