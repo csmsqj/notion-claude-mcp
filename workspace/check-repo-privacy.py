@@ -61,6 +61,12 @@ def inspect(data: bytes, path: str, failures: collections.Counter, reviews: coll
     known_fake_tokens = {
         "workspace/test-command-overlay-integration.py": {b"sk-offline-test-not-a-real-secret-123456"},
         "workspace/test-command-timeout-fix.py": {b"sk-abcdefghijklmnopqrstuvwxyz123456", b"github_pat_abcdefghijklmnopqrstuvwxyz"},
+        # Prior scanner revisions embed these exact synthetic test fixtures.
+        "workspace/check-repo-privacy.py": {
+            b"sk-offline-test-not-a-real-secret-123456",
+            b"sk-abcdefghijklmnopqrstuvwxyz123456",
+            b"github_pat_abcdefghijklmnopqrstuvwxyz",
+        },
     }
     for name, pattern in PRIVATE_TEXT_PATTERNS.items():
         for match in pattern.finditer(data):
